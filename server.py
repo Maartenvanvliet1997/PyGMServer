@@ -12,8 +12,16 @@ class ThreadedTCPHandler(socketserver.BaseRequestHandler):
 
     def setup(self):
         self.handlers = {
+            Message.CONNECT: self.connect_handler,
             Message.MOVE: self.move_handler,
+            Message.DISCONNECT: self.disconnect_handler
         }
+
+    def connect_handler(self, data):
+        print("Client Connected")
+
+    def disconnect_handler(self, data):
+        print("Client Disconnected")
 
     def move_handler(self, data):
         global client_map
