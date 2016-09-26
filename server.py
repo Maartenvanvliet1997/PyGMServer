@@ -1,6 +1,5 @@
 import socketserver
 import struct
-import threading
 
 from messages import Message
 
