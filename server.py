@@ -2,8 +2,11 @@ import socketserver
 import struct
 
 from messages import Message
+import data_handler
 
 client_map = {}
+buffer_u16  = "H"
+buffer_u8 = "b"
 
 class ThreadedTCPHandler(socketserver.BaseRequestHandler):
     daemon_threads = True
@@ -12,9 +15,9 @@ class ThreadedTCPHandler(socketserver.BaseRequestHandler):
     def setup(self):
         self.handlers = {
             Message.CONNECT: self.connect_handler,
+            Message.DISCONNECT: self.disconnect_handler,
             Message.BULLET: self.bullet_handler,
-            Message.MOVE: self.move_handler,
-            Message.DISCONNECT: self.disconnect_handler
+            Message.MOVE: self.move_handler
         }
 
     def connect_handler(self, data):
@@ -22,32 +25,21 @@ class ThreadedTCPHandler(socketserver.BaseRequestHandler):
 
     def disconnect_handler(self, data):
         print("Client Disconnected")
-        send_data = struct.pack('<bH', *[101, self.socket_id])
-        for client_id, client in client_map.items():
-            if client_id != self.socket_id:
-                client.sendall(send_data)
+        self.data_handler.send(
+            [Message.DISCONNECT, self.socket_id],
+            [buffer_u8, buffer_u16],
+            client_map)
 
     def bullet_handler(self, data):
-        print("SHOTS FIRED!!!")
-        _, oX, oY, tX, tY = struct.unpack('<bHHHH', data)
-        send_data = struct.pack('<bHHHHH', *[4, self.socket_id, oX, oY, tX, tY])
-        for client_id, client in client_map.items():
-            if client_id != self.socket_id:
-                client.sendall(send_data)
+        self.__base_rebroadcast(data, Message.BULLET, 4)
 
     def move_handler(self, data):
-        global client_map
-        request = self.request
-        _, x, y = struct.unpack('<bHH', data)
-        print(self.socket_id, x, y)
-        send_data = struct.pack('<bHHH', *[1, self.socket_id, x, y])
-        for client_id, client in client_map.items():
-            if client_id != self.socket_id:
-                client.sendall(send_data)
+        self.__base_rebroadcast(data, Message.MOVE, 2)
 
     def handle(self):
         global client_map
         _, self.socket_id = self.request.getpeername()
+        self.data_handler = data_handler.DataHandler(self.socket_id)
         client_map[self.socket_id] = self.request
         while True:
             try:
@@ -59,10 +51,18 @@ class ThreadedTCPHandler(socketserver.BaseRequestHandler):
                 self.handlers[Message.DISCONNECT](data)
                 break
 
-
     def finish(self):
         global client_map
         del client_map[self.socket_id]
+
+    def __base_rebroadcast(self, data, message, size=1):
+        data_bundle = self.data_handler.receive(
+            data, [buffer_u8, buffer_u16 * size])
+        self.data_handler.send(
+            [message, self.socket_id, *data_bundle],
+            [buffer_u8, buffer_u16 * (size + 1)],
+            client_map)
+
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
