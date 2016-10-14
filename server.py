@@ -5,8 +5,9 @@ from messages import Message
 import data_handler
 
 client_map = {}
-buffer_u16  = "H"
+buffer_u16 = "H"
 buffer_u8 = "b"
+
 
 class ThreadedTCPHandler(socketserver.BaseRequestHandler):
     daemon_threads = True
@@ -34,6 +35,7 @@ class ThreadedTCPHandler(socketserver.BaseRequestHandler):
         self.__base_rebroadcast(data, Message.BULLET, 4)
 
     def move_handler(self, data):
+        print(data, "MOVE")
         self.__base_rebroadcast(data, Message.MOVE, 2)
 
     def handle(self):

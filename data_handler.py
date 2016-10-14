@@ -1,6 +1,7 @@
 
 import struct
 
+
 class DataHandler:
 
     def __init__(self, socket_id):
